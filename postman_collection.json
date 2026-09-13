@@ -1,0 +1,612 @@
+{
+	"info": {
+		"_postman_id": "8f3b2c9a-4d7e-4a61-9c8e-5b6d7e8f9a0b",
+		"name": "P2P Wallet API",
+		"description": "Complete Postman collection for P2P Wallet API with authentication, refresh tokens, wallet operations, deposit, idempotent transfers, and transaction history.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "walletId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "recipientUserId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "transferId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Checks whether the API server is up and running."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users & Auth",
+			"item": [
+				{
+					"name": "1. Create User A (Sender)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"if (response.success && response.data) {",
+									"    pm.collectionVariables.set('userId', response.data.id);",
+									"    if (response.data.wallet) {",
+									"        pm.collectionVariables.set('walletId', response.data.wallet.id);",
+									"    }",
+									"    console.log('Saved Sender User ID:', response.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Alice Johnson\",\n  \"email\": \"alice@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users"
+							]
+						},
+						"description": "Registers a new user and automatically provisions an initial active INR wallet for them."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Create User B (Recipient)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"if (response.success && response.data) {",
+									"    pm.collectionVariables.set('recipientUserId', response.data.id);",
+									"    console.log('Saved Recipient User ID:', response.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Bob Smith\",\n  \"email\": \"bob@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users"
+							]
+						},
+						"description": "Registers a second user to test P2P transfers."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Login User A (Get Access & Refresh Tokens)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"if (response.success && response.data) {",
+									"    if (response.data.accessToken) {",
+									"        pm.collectionVariables.set('token', response.data.accessToken);",
+									"    } else if (response.data.token) {",
+									"        pm.collectionVariables.set('token', response.data.token);",
+									"    }",
+									"    if (response.data.refreshToken) {",
+									"        pm.collectionVariables.set('refreshToken', response.data.refreshToken);",
+									"    }",
+									"    if (response.data.user) {",
+									"        pm.collectionVariables.set('userId', response.data.user.id);",
+									"        if (response.data.user.wallet) {",
+									"            pm.collectionVariables.set('walletId', response.data.user.wallet.id);",
+									"        }",
+									"    }",
+									"    console.log('Saved Tokens & IDs');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"login"
+							]
+						},
+						"description": "Logs in the user and automatically saves the Access and Refresh tokens."
+					},
+					"response": []
+				},
+				{
+					"name": "4. Refresh Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"if (response.success && response.data) {",
+									"    if (response.data.accessToken) {",
+									"        pm.collectionVariables.set('token', response.data.accessToken);",
+									"    }",
+									"    if (response.data.refreshToken) {",
+									"        pm.collectionVariables.set('refreshToken', response.data.refreshToken);",
+									"    }",
+									"    console.log('Saved New Access & Refresh Tokens');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/refresh-token",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"refresh-token"
+							]
+						},
+						"description": "Exchanges a valid refresh token for a fresh access token and refresh token pair."
+					},
+					"response": []
+				},
+				{
+					"name": "5. Get User by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"{{userId}}"
+							]
+						},
+						"description": "Retrieves user details along with their associated wallet."
+					},
+					"response": []
+				},
+				{
+					"name": "6. Get User's Wallet",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users/{{userId}}/wallet",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"{{userId}}",
+								"wallet"
+							]
+						},
+						"description": "Fetches the wallet of a specific user by user ID."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Wallets & Deposits",
+			"item": [
+				{
+					"name": "1. Deposit Money to Wallet",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 1000,\n  \"idempotency_key\": \"deposit-key-001\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/wallets/{{walletId}}/deposit",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"wallets",
+								"{{walletId}}",
+								"deposit"
+							]
+						},
+						"description": "Deposits funds into a wallet. Atomically updates the wallet balance in Paise and generates a DEPOSIT transaction ledger entry. Fully idempotent with `idempotency_key`."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Get Wallet by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/wallets/{{walletId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"wallets",
+								"{{walletId}}"
+							]
+						},
+						"description": "Fetches current wallet details and balance."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Get Wallet Transactions (History)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/wallets/{{walletId}}/transactions?page=1&limit=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"wallets",
+								"{{walletId}}",
+								"transactions"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (default: 1)"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Results per page (default: 10)"
+								},
+								{
+									"key": "type",
+									"value": "TRANSFER",
+									"description": "Filter by type (DEPOSIT | TRANSFER)",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "COMPLETED",
+									"description": "Filter by status (PENDING | PROCESSING | COMPLETED | FAILED)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Returns a paginated list of all financial transactions (debits, credits, transfers) related to this wallet."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "P2P Transfers",
+			"item": [
+				{
+					"name": "1. Transfer Money (P2P Transfer)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"if (response.success && response.data && response.data.transaction) {",
+									"    pm.collectionVariables.set('transferId', response.data.transaction.id);",
+									"    console.log('Saved Transfer ID:', response.data.transaction.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"from_user_id\": \"{{userId}}\",\n  \"to_user_id\": \"{{recipientUserId}}\",\n  \"amount\": 300,\n  \"idempotency_key\": \"transfer-key-001\",\n  \"description\": \"Dinner split payment\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transfers",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"transfers"
+							]
+						},
+						"description": "Atomically debits the sender wallet (-₹300) and credits the recipient wallet (+₹300) in a single database transaction with row-level locking to prevent race conditions. Fully idempotent via `idempotency_key`."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Transfer - Idempotency Replay Test",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"from_user_id\": \"{{userId}}\",\n  \"to_user_id\": \"{{recipientUserId}}\",\n  \"amount\": 300,\n  \"idempotency_key\": \"transfer-key-001\",\n  \"description\": \"Dinner split payment\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transfers",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"transfers"
+							]
+						},
+						"description": "Sends the exact same transfer request with the same `idempotency_key`. The API returns the existing transaction without deducting funds a second time."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Transfer - Conflict Test (Same Key, Different Amount)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"from_user_id\": \"{{userId}}\",\n  \"to_user_id\": \"{{recipientUserId}}\",\n  \"amount\": 500,\n  \"idempotency_key\": \"transfer-key-001\",\n  \"description\": \"Different amount with used key\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/transfers",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"transfers"
+							]
+						},
+						"description": "Demonstrates conflict handling: reusing an existing idempotency key with different payload details returns HTTP 409 IDEMPOTENCY_CONFLICT."
+					},
+					"response": []
+				},
+				{
+					"name": "4. Get Transfer by ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/transfers/{{transferId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"transfers",
+								"{{transferId}}"
+							]
+						},
+						"description": "Fetches transfer and transaction details by ID, including sender and recipient wallet/user metadata."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
